@@ -21,9 +21,10 @@ main(int argc, char **argv)
     if (argc > 1) HardwareOutputSpeed(1, atoi(argv[1]));
     if (argc > 2) HardwareInputSpeed(1, atoi(argv[2]));
 
-    ThreadCreate(writer1, NULL);
-    ThreadCreate(writer2, NULL);
-
+    //ThreadCreate(writer1, NULL);
+    //ThreadCreate(writer2, NULL);
+    writer1(NULL);
+    writer2(NULL);
     ThreadWaitAll();
 
     exit(0);
