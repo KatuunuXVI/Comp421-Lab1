@@ -34,11 +34,13 @@ void
 reader(void *arg) {
     int status;
     int status2;
-    char *x = malloc(20*sizeof(char));
+    char *x = malloc(16*sizeof(char));
+    char *y = malloc(16*sizeof(char));
     printf("Doing ReadTerminal... '\n");
     fflush(stdout);
-    //sleep(5);
-    status = ReadTerminal(1, x, 5);
-    printf("X: %.*s %d\n",  5*sizeof(char),x, status);
+    status = ReadTerminal(1, x, 16);
+    printf("X: %.*s %d\n",  16*sizeof(char),x, status);
+    status = ReadTerminal(1, y, 16);
+    printf("Y: %.*s %d\n",  16*sizeof(char),y, status);
 
 }

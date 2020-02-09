@@ -5,12 +5,17 @@
 
 void writer1(void *);
 void writer2(void *);
+void writer3(void *);
+void reader(void *);
 
-char string1[] = "abcdefghijklmnopqrstuvwxyz\n";
+char string1[] = "abcdefghijklmnopqrstuvwxyz";
+//char string1[] = "------------------------------\n";
 int length1 = sizeof(string1) - 1;
 
-char string2[] = "0123456789\n";
+char string2[] = "0123456789";
+char string3[] = "|||||||||||||||||||||||||||||";
 int length2 = sizeof(string2) - 1;
+int length3 = sizeof(string3) - 1;
 
 int
 main(int argc, char **argv)
@@ -21,10 +26,10 @@ main(int argc, char **argv)
     if (argc > 1) HardwareOutputSpeed(1, atoi(argv[1]));
     if (argc > 2) HardwareInputSpeed(1, atoi(argv[2]));
 
-    //ThreadCreate(writer1, NULL);
-    //ThreadCreate(writer2, NULL);
-    writer1(NULL);
-    writer2(NULL);
+    ThreadCreate(writer1, NULL);
+    ThreadCreate(writer2, NULL);
+    ThreadCreate(writer3, NULL);
+    ThreadCreate(reader, NULL);
     ThreadWaitAll();
 
     exit(0);
@@ -50,4 +55,25 @@ writer2(void *arg)
     if (status != length2)
 	fprintf(stderr, "Error: writer2 status = %d, length2 = %d\n",
 	    status, length2);
+}
+
+
+void
+writer3(void *arg)
+{
+    int status;
+
+    status = WriteTerminal(1, string3, length3);
+    if (status != length3)
+        fprintf(stderr, "Error: writer2 status = %d, length2 = %d\n",
+                status, length2);
+}
+
+void
+reader(void *arg)
+{
+    int status;
+    char x[8];
+    status = ReadTerminal(1,x,8);
+    printf("X: %.*s\n", sizeof(char)*8,x);
 }

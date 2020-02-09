@@ -105,6 +105,8 @@ static int writing = 0;
 
 static cond_id_t writingSig;
 
+static cond_id_t echoSig;
+
 static int termStates[NUM_TERMINALS];
 
 
@@ -134,16 +136,27 @@ struct terminal *getTerminal(int term) {
     return &terminals[t];
 }
 
+int checkEcho() {
+    int t = 0;
+    while(t < NUM_TERMINALS) {
+        if(terminals[t].echo) {
+            return 1;
+        }
+        t++;
+    }
+    return 0;
+}
 
 
 void echoToTerminal(int term, struct terminal *t) {
+    t->echo = 1;
     if(t->inputBuf.full) {
         return;
     }
     else {
-        if(writing) {CondWait(t->echoSignal);printf("Writing");}
-        writing = 1;
-        WriteDataRegister(term,popFromBuffer(t->echoBuf));
+        if(writing) {CondWait(t->echoSignal);}
+        WriteDataRegister(term,popFromBuffer(&t->echoBuf));
+        t->echo = 0;
     }
 }
 
@@ -156,50 +169,57 @@ extern void ReceiveInterrupt(int term) {
 
     int empty = t->inputBuf.empty;
     char c = ReadDataRegister(term);
-    printf("%c\n",c);
-    printf("RI\n");
-    switch(c){
-        case '\r': pushToBuffer(&t->inputBuf,'\n');
-            pushToBuffer(&t->echoBuf,'\r');
-            pushToBuffer(&t->echoBuf,'\n');
-            //echoToTerminal(term,t,'\r');
-            //echoToTerminal(term,t,'\n');
-            if(empty) {CondSignal(t->readSignal);}
+    switch(c) {
+        case '\r':
+            pushToBuffer(&t->inputBuf, '\n');
+            pushToBuffer(&t->echoBuf, '\r');
+            pushToBuffer(&t->echoBuf, '\n');
             break;
-        case '\n':  pushToBuffer(&t->inputBuf, '\n');
-            pushToBuffer(&t->echoBuf,'\r');
-            pushToBuffer(&t->echoBuf,'\n');
-            //echoToTerminal(term,t,'\r');
-            //echoToTerminal(term,t,'\n');
-            if(empty) {CondSignal(t->readSignal);}
+        case '\n':
+            pushToBuffer(&t->inputBuf, '\n');
+            pushToBuffer(&t->echoBuf, '\r');
+            pushToBuffer(&t->echoBuf, '\n');
             break;
-        case '\b': pullFromBuffer(&t->inputBuf);
-                pushToBuffer(&t->inputBuf, '\b');
-                pushToBuffer(&t->echoBuf, '\b');
-                //echoToTerminal(term,t,'\b');
-                if(empty) {CondSignal(t->readSignal);}
-                break;
-        case '\177': pullFromBuffer(&t->inputBuf);
+        case '\b':
+            pullFromBuffer(&t->inputBuf);
             pushToBuffer(&t->inputBuf, '\b');
             pushToBuffer(&t->echoBuf, '\b');
-            //echoToTerminal(term,t,'\b');
-                break;
+            break;
+        case '\177':
+            pullFromBuffer(&t->inputBuf);
+            pushToBuffer(&t->inputBuf, '\b');
+            pushToBuffer(&t->echoBuf, '\b');
+            break;
         default:
             pushToBuffer(&t->inputBuf, c);
             pushToBuffer(&t->echoBuf, c);
-            //echoToTerminal(term,t,c);
-}
-            if(empty) {CondSignal(t->readSignal);}
+    }
+
+    /**
+     * Begin echo process if not already started
+     */
+    if(!(t->echo)) {echoToTerminal(term, t);}
+    /**
+     * Alert the ReadTerminal Routine that it can continue
+     */
+    if(empty && t->reading) {CondSignal(t->readSignal);}
+
+
 }
 
 extern void TransmitInterrupt(int term) {
     Declare_Monitor_Entry_Procedure();
     struct terminal *t = getTerminal(term);
-    if(!(t->echoBuf.empty)) {
-      CondSignal(t->echoSignal);
+    if(t->echo) {
+        CondSignal(t->echoSignal);
+    } else if(!(t->echoBuf.empty)) {
+        echoToTerminal(term,t);
+    }
+    else if(checkEcho()) {
+      CondSignal(echoSig);
     } else {
         CondSignal(writingSig);
-    } writing = 0;
+    }
 
 }
 
@@ -207,35 +227,36 @@ extern int WriteTerminal(int term, char* buf, int buflen) {
 
     Declare_Monitor_Entry_Procedure();
 
-    printf("%d",termStates[term]);
-    termStates[term] = 1;
-    printf("%d",termStates[term]);
     if(buflen == 0) return 0;
+    struct terminal *t = getTerminal(term);
     int c;
+    if(writing || checkEcho()) {
+        CondWait(writingSig);
+    }
+    writing += 1;
     for(c = 0; c < buflen; c++) {
         char next = buf[c];
+        WriteDataRegister(term,next);
+        CondWait(writingSig);
         if(next == '\n') {
-            printf("New Line");
             WriteDataRegister(term,'\r');
             CondWait(writingSig);
         }
-        WriteDataRegister(term,next);
-        printf("WT");
-        CondWait(writingSig);
-
     }
+    CondSignal(writingSig);
+    writing -= 1;
     return c;
 }
 
 extern int ReadTerminal(int term, char* buf, int buflen) {
     Declare_Monitor_Entry_Procedure();
     if(buflen == 0) return 0;
-    int c = 0;
     struct terminal *t = getTerminal(term);
     if(t->reading) {
         CondWait(t->readThread);
     }
     t->reading = 1;
+    int c = 0;
     char next;
     while(c < buflen) {
         next = popFromBuffer(&t->inputBuf);
@@ -269,6 +290,7 @@ extern int InitTerminal(int term) {
     t.reading = 0;
     t.readSignal = CondCreate();
     t.readThread = CondCreate();
+    t.echoSignal = CondCreate();
     //t.activeWriting = 2;
     terminals[termIn] = t;
     termStates[term] = 0;
@@ -294,6 +316,7 @@ extern int TerminalDriverStatistics(struct termstat *stats) {
 extern int InitTerminalDriver() {
     Declare_Monitor_Entry_Procedure();
     writingSig = CondCreate();
+    echoSig = CondCreate();
     return 0;
 }
 
@@ -330,7 +353,6 @@ static void pullFromBuffer(struct buffer *buf) {
 
 static void pushToBuffer(struct buffer *buf, char c) {
     if(buf->full) {
-        printf("Full Buf\n");
         return;
     }
     if(buf->empty) {
@@ -343,8 +365,8 @@ static void pushToBuffer(struct buffer *buf, char c) {
     }
     if(buf->in == buf->out) {
         buf->full = 1;
-    }
-}
+
+}}
 
 static char popFromBuffer(struct buffer *buf) {
     if(buf->empty) {
