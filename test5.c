@@ -17,8 +17,9 @@ int main(int argc, char **argv)
     //InitTerminal(2);
     if (argc > 1) HardwareOutputSpeed(1, atoi(argv[1]));
     if (argc > 2) HardwareInputSpeed(1, atoi(argv[2]));
+    ThreadCreate(reader, NULL);
     reader(NULL);
-    //ThreadCreate(writer, NULL);
+
 
 
     //ThreadCreate(writer2, NULL);
@@ -33,17 +34,11 @@ void
 reader(void *arg) {
     int status;
     int status2;
-    char *x = malloc(4*sizeof(char));
+    char *x = malloc(20*sizeof(char));
     printf("Doing ReadTerminal... '\n");
     fflush(stdout);
+    //sleep(5);
+    status = ReadTerminal(1, x, 5);
+    printf("X: %.*s %d\n",  5*sizeof(char),x, status);
 
-    status = ReadTerminal(1, x, 4);
-    printf("X: %.*s %d\n", 4* sizeof(char),x, status);
-    sleep(50);
-    /*char *y;
-    printf("Doing ReadTerminal Again... '\n");
-    fflush(stdout);
-    status = ReadTerminal(1, x, 10);
-    printf("Y: %.*s %d\n", 20* sizeof(char),y, status);*/
-    //a
 }

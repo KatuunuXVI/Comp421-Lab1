@@ -43,18 +43,8 @@ static char popFromBuffer(struct buffer *buf);
 int main(int argc, char **argv)
 {
     struct buffer b = getBuffer(8);
-    int c;
-    for(c = 0; c < 9; c++) {
-        pushToBuffer(&b,'P');
-    }
-    int d;
-    for(d = 0; d < 3; d++) {
-        popFromBuffer(&b);
-    }
-    int e;
-    for(e = 0; e < 3; e++) {
-        pushToBuffer(&b,'D');
-    }
+    pushToBuffer(b,'c');
+    pushToBuffer(b,'c');
     printf("%.*s\n", sizeof(char)*8,b.b);
     char x = popFromBuffer(&b);
     printf("%c\n",x);

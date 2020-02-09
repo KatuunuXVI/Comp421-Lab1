@@ -38,7 +38,13 @@ writer(void *arg) {
     printf("Doing WriteTerminal... '\n");
     fflush(stdout);
     status = WriteTerminal(1, string, length);
-    sleep(100);
+    //sleep(100);
+    char x[20];
+    ReadTerminal(1,x,20);
+    printf("X: %.*s\n", 20* sizeof(char),x);
+    char y[20];
+    ReadTerminal(1,y,20);
+    printf("Y: %.*s\n", 20* sizeof(char),y);
     fflush(stdout);
     //a
 }
