@@ -7,6 +7,7 @@ void writer1(void *);
 void writer2(void *);
 void writer3(void *);
 void reader(void *);
+void reader2(void *);
 
 char string1[] = "abcdefghijklmnopqrstuvwxyz";
 //char string1[] = "------------------------------\n";
@@ -22,14 +23,21 @@ main(int argc, char **argv)
 {
     InitTerminalDriver();
     InitTerminal(1);
-
+    //InitTerminal(2);
     if (argc > 1) HardwareOutputSpeed(1, atoi(argv[1]));
     if (argc > 2) HardwareInputSpeed(1, atoi(argv[2]));
 
-    ThreadCreate(writer1, NULL);
+    /*ThreadCreate(writer1, NULL);
     ThreadCreate(writer2, NULL);
     ThreadCreate(writer3, NULL);
+    ThreadCreate(writer1, NULL);
+    ThreadCreate(writer2, NULL);
     ThreadCreate(reader, NULL);
+    ThreadCreate(writer3, NULL);
+    ThreadCreate(writer1, NULL);
+    ThreadCreate(writer2, NULL);
+    ThreadCreate(writer3, NULL);*/
+    ThreadCreate(reader2, NULL);
     ThreadWaitAll();
 
     exit(0);
@@ -63,7 +71,7 @@ writer3(void *arg)
 {
     int status;
 
-    status = WriteTerminal(1, string3, length3);
+    status = WriteTerminal(2, string3, length3);
     if (status != length3)
         fprintf(stderr, "Error: writer2 status = %d, length2 = %d\n",
                 status, length2);
@@ -74,6 +82,19 @@ reader(void *arg)
 {
     int status;
     char x[8];
-    status = ReadTerminal(1,x,8);
-    printf("X: %.*s\n", sizeof(char)*8,x);
+    while(1) {
+        status = ReadTerminal(1, x, 8);
+        printf("X: %.*s\n", sizeof(char) * 8, x);
+    }
+}
+
+void
+reader2(void *arg)
+{
+    int status;
+    char y[8];
+    while(1) {
+        status = ReadTerminal(2, y, 8);
+        printf("Y: %.*s\n", sizeof(char) * 8, y);
+    }
 }
