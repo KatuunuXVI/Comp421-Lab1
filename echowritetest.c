@@ -15,6 +15,7 @@ main(int argc, char **argv)
     char x[8];
     while(1) {
         WriteTerminal(1, "A    B    C    D    E    F    G    H    I    J    K    L    M    N    O    P", 76);
+        ThreadCreate(WriteTerminal(1, "A    B    C    D    E    F    G    H    I    J    K    L    M    N    O    P", 76));
     }
     exit(0);
 }
