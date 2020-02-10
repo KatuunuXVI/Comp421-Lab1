@@ -100,6 +100,8 @@ static int termIn = 0;
 
 static int writing = 0;
 
+static int echoWait = 0;
+
 static int echo = 0;
 
 static cond_id_t writingSig;
@@ -138,8 +140,8 @@ struct terminal *getTerminal(int term) {
 }
 
 
-void echoToTerminal() {
-    if(writing) {CondWait(echoSig);printf("Writing");}
+void echoToTerminal(int start) {
+    if(writing && start) {printf("ETT: Waiting for echoSig\nWriting: %d\n",writing); echoWait = 1; CondWait(echoSig); echoWait = 0;}
     char c = popFromBuffer(&echoBuf);
     int term = popFromBuffer(&echoBufMap);
     WriteDataRegister(term,c);
@@ -158,6 +160,7 @@ extern void ReceiveInterrupt(int term) {
     switch(c) {
         case '\r':
             pushToBuffer(&t->inputBuf, '\n');
+
             //pushToBuffer(&t->echoBuf, '\r');
             //pushToBuffer(&t->echoBuf, '\n');
             pushToBuffer(&echoBuf, '\r');
@@ -191,11 +194,10 @@ extern void ReceiveInterrupt(int term) {
             pushToBuffer(&echoBuf, c);
             pushToBuffer(&echoBufMap, term);
     }
-    printf("Switch done\n");
     /**
      * Begin echo process if not already started
      */
-    if(!echo) {echo = 1; echoToTerminal();}
+    if(!echo) {echo = 1; echoToTerminal(1);}
     /**
      * Alert the ReadTerminal Routine that it can continue
      */
@@ -207,15 +209,23 @@ extern void ReceiveInterrupt(int term) {
 extern void TransmitInterrupt(int term) {
     Declare_Monitor_Entry_Procedure();
     struct terminal *t = getTerminal(term);
-    if(echo) {
+    printf("TI: ");
+    if(echoWait) {
+        printf("Echo Wait\n");
+        CondSignal(echoSig);
+    }
+    else if(echo) {
+        printf("Echo -> ");
         if(echoBuf.empty) {
+            printf("Empty\n");
             echo = 0;
             CondSignal(writingSig);
-        } else if(writing) {
-            CondSignal(echoSig);
         }
         else {
-            echoToTerminal();
+            printf("Else -> ");
+            printf("Writing: %d\n",writing);
+            echoToTerminal(0);
+            CondSignal(echoSig);
         }
     } else {
         CondSignal(writingSig);
@@ -224,25 +234,27 @@ extern void TransmitInterrupt(int term) {
 }
 
 extern int WriteTerminal(int term, char* buf, int buflen) {
-
     Declare_Monitor_Entry_Procedure();
-
     if(buflen == 0) return 0;
     struct terminal *t = getTerminal(term);
     int c;
     if(writing || echo) {
+        printf("Start of WT: Waiting for Writing Signal\n");
         CondWait(writingSig);
     }
     writing += 1;
     for(c = 0; c < buflen; c++) {
         char next = buf[c];
         WriteDataRegister(term,next);
+        printf("WT Loop: Waiting for Writing Signal\n");
         CondWait(writingSig);
         if(next == '\n') {
             WriteDataRegister(term,'\r');
+            printf("WT Loop: Waiting for Writing Signal\n");
             CondWait(writingSig);
         }
     }
+    CondSignal(echoSig);
     CondSignal(writingSig);
     writing -= 1;
     return c;
