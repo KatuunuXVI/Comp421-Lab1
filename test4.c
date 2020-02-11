@@ -23,21 +23,21 @@ main(int argc, char **argv)
 {
     InitTerminalDriver();
     InitTerminal(1);
-    InitTerminal(2);
+    //InitTerminal(2);
     if (argc > 1) HardwareOutputSpeed(1, atoi(argv[1]));
     if (argc > 2) HardwareInputSpeed(1, atoi(argv[2]));
 
-    ThreadCreate(writer1, NULL);
+    /*ThreadCreate(writer1, NULL);
     ThreadCreate(writer2, NULL);
     ThreadCreate(writer3, NULL);
     ThreadCreate(writer1, NULL);
-    ThreadCreate(writer2, NULL);
+    ThreadCreate(writer2, NULL);*/
     ThreadCreate(reader, NULL);
-    ThreadCreate(writer3, NULL);
+    /*ThreadCreate(writer3, NULL);
     ThreadCreate(writer1, NULL);
     ThreadCreate(writer2, NULL);
     ThreadCreate(writer3, NULL);
-    ThreadCreate(reader2, NULL);
+    ThreadCreate(reader2, NULL);*/
     ThreadWaitAll();
 
     exit(0);
@@ -81,11 +81,33 @@ void
 reader(void *arg)
 {
     int status;
-    char x[8];
-    while(1) {
-        status = ReadTerminal(1, x, 8);
-        printf("X: %.*s\n", sizeof(char) * 8, x);
-    }
+
+
+    int len1, len2, len3;
+    char buf1[2];
+    char buf2[10];
+    char buf3[10];
+    //char buf4[10];
+
+    //ReadTerminal(1, buf4, 10);
+
+    //while(1) {
+    char x[2];
+    char y[10];
+    char z[10];
+    status = ReadTerminal(1, x, 2);
+    printf("X: %.*s -> %d\n", sizeof(char) * status, x, status);
+    status = ReadTerminal(1, y, 10);
+    printf("Y: %.*s -> %d\n", sizeof(char) * status, y, status);
+    status = ReadTerminal(1, z, 10);
+    printf("Z: %.*s -> %d\n", sizeof(char) * status, z, status);
+    /*char y[8];
+    status = ReadTerminal(1, y, 8);
+    printf("Y: %.*s -> %d\n", sizeof(char) * 8, y, status);
+    char z[8];
+    status = ReadTerminal(1, z, 8);
+    printf("Z: %.*s -> %d\n", sizeof(char) * 8, z, status);*/
+    //}
 }
 
 void
@@ -95,6 +117,6 @@ reader2(void *arg)
     char y[8];
     while(1) {
         status = ReadTerminal(2, y, 8);
-        printf("Y: %.*s\n", sizeof(char) * 8, y);
+        printf("Y: %.*s -> %d\n", sizeof(char) * 8, y, status);
     }
 }

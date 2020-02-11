@@ -43,7 +43,7 @@ LANG = cc
 #	terminal device driver named \verb|montty.o|.  Your
 #	compiled driver *must* be named \verb|montty.o|.
 #
-TEST = test1 test2 test3 test4 test5 testbuffer echotest echowritetest
+TEST = test1 test2 test3 test4 test5 testbuffer echotest echowritetest sgatest sgatest2 sgatest3 sgatest4 jwtest1 jwtest2 jwtest3 jwtest4 jwtest5 jwtest6 jwtest7 jwtest8
 ALL = $(MONTTY) $(TEST)
 
 #

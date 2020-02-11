@@ -15,7 +15,7 @@ int length = sizeof(string) - 1;
 int main(int argc, char **argv)
 {
     InitTerminalDriver();
-    InitTerminal(1);
+    InitTerminal(2);
     //InitTerminal(2);
     if (argc > 1) HardwareOutputSpeed(1, atoi(argv[1]));
     if (argc > 2) HardwareInputSpeed(1, atoi(argv[2]));
@@ -37,12 +37,12 @@ writer(void *arg) {
 
     printf("Doing WriteTerminal... '\n");
     fflush(stdout);
-    status = WriteTerminal(1, string, length);
+    status = WriteTerminal(2, string, length);
     char x[20];
-    ReadTerminal(1,x,20);
+    ReadTerminal(2,x,20);
     printf("X: %.*s\n", 20* sizeof(char),x);
     char y[20];
-    ReadTerminal(1,y,20);
+    ReadTerminal(2,y,20);
     printf("Y: %.*s\n", 20* sizeof(char),y);
     fflush(stdout);
 
