@@ -23,21 +23,26 @@ main(int argc, char **argv)
 {
     InitTerminalDriver();
     InitTerminal(1);
-    //InitTerminal(2);
+    InitTerminal(2);
+    //InitTerminal(3);
     if (argc > 1) HardwareOutputSpeed(1, atoi(argv[1]));
     if (argc > 2) HardwareInputSpeed(1, atoi(argv[2]));
-
-    /*ThreadCreate(writer1, NULL);
-    ThreadCreate(writer2, NULL);
-    ThreadCreate(writer3, NULL);
-    ThreadCreate(writer1, NULL);
-    ThreadCreate(writer2, NULL);*/
     ThreadCreate(reader, NULL);
-    /*ThreadCreate(writer3, NULL);
     ThreadCreate(writer1, NULL);
     ThreadCreate(writer2, NULL);
     ThreadCreate(writer3, NULL);
-    ThreadCreate(reader2, NULL);*/
+    ThreadCreate(writer1, NULL);
+    ThreadCreate(writer2, NULL);
+
+    ThreadCreate(reader, NULL);
+    ThreadCreate(reader, NULL);
+    ThreadCreate(reader, NULL);
+    ThreadCreate(reader, NULL);
+    ThreadCreate(writer3, NULL);
+    ThreadCreate(writer1, NULL);
+    ThreadCreate(writer2, NULL);
+    ThreadCreate(writer3, NULL);
+    ThreadCreate(reader2, NULL);
     ThreadWaitAll();
 
     exit(0);
@@ -47,8 +52,10 @@ void
 writer1(void *arg)
 {
     int status;
+    while(1) {
+        status = WriteTerminal(1, "Bitch ass, Bitch Bitch Ass Nigga", length1);
+    }
 
-    status = WriteTerminal(1, string1, length1);
     if (status != length1)
 	fprintf(stderr, "Error: writer1 status = %d, length1 = %d\n",
 	    status, length1);
@@ -58,8 +65,10 @@ void
 writer2(void *arg)
 {
     int status;
+    while(1) {
+        WriteTerminal(2, "Doodily Ding Dong Tik Tok", sizeof("Doodily Ding Dong Tik Tok"));
+    }
 
-    status = WriteTerminal(1, string2, length2);
     if (status != length2)
 	fprintf(stderr, "Error: writer2 status = %d, length2 = %d\n",
 	    status, length2);
@@ -70,8 +79,10 @@ void
 writer3(void *arg)
 {
     int status;
+    while(1) {
+        WriteTerminal(2, "Cuz we are the Aqua Teens", length3);
+    }
 
-    status = WriteTerminal(2, string3, length3);
     if (status != length3)
         fprintf(stderr, "Error: writer2 status = %d, length2 = %d\n",
                 status, length2);
@@ -81,26 +92,18 @@ void
 reader(void *arg)
 {
     int status;
-
-
-    int len1, len2, len3;
-    char buf1[2];
-    char buf2[10];
-    char buf3[10];
-    //char buf4[10];
-
-    //ReadTerminal(1, buf4, 10);
-
-    //while(1) {
-    char x[2];
-    char y[10];
-    char z[10];
-    status = ReadTerminal(1, x, 2);
-    printf("X: %.*s -> %d\n", sizeof(char) * status, x, status);
-    status = ReadTerminal(1, y, 10);
-    printf("Y: %.*s -> %d\n", sizeof(char) * status, y, status);
-    status = ReadTerminal(1, z, 10);
-    printf("Z: %.*s -> %d\n", sizeof(char) * status, z, status);
+    while(1) {
+        printf("Reader\n");
+        char x[8];
+        char y[8];
+        char z[8];
+        status = ReadTerminal(1, x, 8);
+        printf("X: %.*s -> %d\n", sizeof(char) * status, x, status);
+        status = ReadTerminal(1, y, 8);
+        printf("Y: %.*s -> %d\n", sizeof(char) * status, y, status);
+        status = ReadTerminal(1, z, 8);
+        printf("Z: %.*s -> %d\n", sizeof(char) * status, z, status);
+    }
     /*char y[8];
     status = ReadTerminal(1, y, 8);
     printf("Y: %.*s -> %d\n", sizeof(char) * 8, y, status);

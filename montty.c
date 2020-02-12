@@ -152,10 +152,12 @@ static int echoWait = 0;
  */
 static int echo = 0;
 
-/**
- * If there is a lingering \n from a previous ReadTerminal call
- */
-static int newLine = 0;
+
+static int snapShot = 0;
+
+static int ssWaiting = 0;
+
+static cond_id_t snapShotSignal;
 
 /**
  * Signal for automatic writing
@@ -190,6 +192,7 @@ static struct buffer echoBufMap;
 void echoToTerminal(int start) {
     if(writing && start) {echoWait = 1; CondWait(echoSig); echoWait = 0;}
     int t = popFromBuffer(&echoBufMap);
+    if(snapShot) {ssWaiting += 1; CondWait(snapShotSignal);}
     WriteDataRegister(t,popFromBuffer(&echoBuf));
     terminals[t].tty_out++;
 
@@ -207,12 +210,12 @@ extern void ReceiveInterrupt(int term) {
     }
     int empty = t->inputBuf.empty;
     //int empty = t->tempInput.empty;
+    if(snapShot) {ssWaiting += 1; CondWait(snapShotSignal);}
     char c = ReadDataRegister(term);
     t->tty_in ++;
     switch(c) {
         case '\r':
             pushToBuffer(&t->inputBuf, '\n');
-      //      if(t->reading) {pushToBuffer(&t->tempInput, '\n');}
             pushToBuffer(&echoBuf, '\r');
             pushToBuffer(&echoBufMap, term);
             pushToBuffer(&echoBuf, '\n');
@@ -220,7 +223,6 @@ extern void ReceiveInterrupt(int term) {
             break;
         case '\n':
             pushToBuffer(&t->inputBuf, '\n');
-        //    if(t->reading) {pushToBuffer(&t->tempInput, '\n');}
             pushToBuffer(&echoBuf, '\r');
             pushToBuffer(&echoBufMap, term);
             pushToBuffer(&echoBuf, '\n');
@@ -228,23 +230,26 @@ extern void ReceiveInterrupt(int term) {
             break;
         case '\b':
             pullFromBuffer(&t->inputBuf);
-          //  if(t->reading) {pullFromBuffer(&t->tempInput);}
             pushToBuffer(&t->inputBuf, '\b');
-            //if(t->reading) {pushToBuffer(&t->tempInput, '\b');}
+            pushToBuffer(&echoBuf, '\b');
+            pushToBuffer(&echoBufMap, term);
+            pushToBuffer(&echoBuf, ' ');
+            pushToBuffer(&echoBufMap, term);
             pushToBuffer(&echoBuf, '\b');
             pushToBuffer(&echoBufMap, term);
             break;
         case '\177':
             pullFromBuffer(&t->inputBuf);
-            //if(t->reading) {pullFromBuffer(&t->tempInput);}
             pushToBuffer(&t->inputBuf, '\b');
-            //if(t->reading) {pushToBuffer(&t->tempInput, '\b');}
+            pushToBuffer(&echoBuf, '\b');
+            pushToBuffer(&echoBufMap, term);
+            pushToBuffer(&echoBuf, ' ');
+            pushToBuffer(&echoBufMap, term);
             pushToBuffer(&echoBuf, '\b');
             pushToBuffer(&echoBufMap, term);
             break;
         default:
             pushToBuffer(&t->inputBuf, c);
-            //if(t->reading) {printf("Reading \n");pushToBuffer(&t->tempInput, c);} else {printf("Not reading\n");}
             pushToBuffer(&echoBuf, c);
             pushToBuffer(&echoBufMap, term);
     }
@@ -311,10 +316,12 @@ extern int WriteTerminal(int term, char* buf, int buflen) {
     writing += 1;
     for(c = 0; c < buflen; c++) {
         char next = buf[c];
+        if(snapShot) {ssWaiting += 1; CondWait(snapShotSignal);}
         WriteDataRegister(term,next);
         t->tty_out++;
         CondWait(writingSig);
         if(next == '\n') {
+            if(snapShot) {ssWaiting += 1; CondWait(snapShotSignal);}
             WriteDataRegister(term,'\r');
             t->tty_out++;
             CondWait(writingSig);
@@ -322,6 +329,7 @@ extern int WriteTerminal(int term, char* buf, int buflen) {
     }
     CondSignal(echoSig);
     CondSignal(writingSig);
+    if(snapShot) {ssWaiting += 1; CondWait(snapShotSignal);}
     t->user_in += c;
     writing -= 1;
     return c;
@@ -329,14 +337,11 @@ extern int WriteTerminal(int term, char* buf, int buflen) {
 
 extern int ReadTerminal(int term, char* buf, int buflen) {
     Declare_Monitor_Entry_Procedure();
-    printf("Reading Terminal\n");
-
     if(!terms[term]) {
         return -1;
     }
     if(buflen == 0) return 0;
     struct terminal *t = &terminals[term];
-    printf("Read Buffer -> %d\n",t->readBuf.empty);
     //struct buffer s;
     if(t->reading) {
         CondWait(t->readThread);
@@ -346,7 +351,7 @@ extern int ReadTerminal(int term, char* buf, int buflen) {
     char next;
     while(!(t->readBuf.empty)) {
         next = popFromBuffer(&t->readBuf);
-        printf("In Read buffer - %c\n",next);
+        //printf("In Read buffer - %c\n",next);
         if(next =='\b') {
             c--;
             if(c < 0) {c = 0;}
@@ -358,13 +363,15 @@ extern int ReadTerminal(int term, char* buf, int buflen) {
         }
         if(next == '\n') {
             t->reading = 0;
+            if(snapShot) {ssWaiting += 1; CondWait(snapShotSignal);}
+            t->user_out += c;
             return c;
         }
         if(c >= buflen) {
             break;
         }
     }
-    printf("Past Read Buffer\n");
+    //printf("Past Read Buffer\n");
     while(1) {
         next = popFromBuffer(&t->inputBuf);
         if (next == '\0') {
@@ -382,7 +389,7 @@ extern int ReadTerminal(int term, char* buf, int buflen) {
         if(c < buflen) {
             buf[c] = next;
         } else {
-            printf("Storing in read buffer\n");
+            //printf("Storing in read buffer\n");
             pushToBuffer(&t->readBuf, next);
         }
         c++;
@@ -392,6 +399,7 @@ extern int ReadTerminal(int term, char* buf, int buflen) {
     }
     int i = (c > buflen)? buflen : c;
     //incrementBuffer(&t->inputBuf,i);
+    if(snapShot) {ssWaiting += 1; CondWait(snapShotSignal);}
     t->user_out += i;
     t->reading = 0;
     CondSignal(t->readThread);
@@ -428,13 +436,31 @@ extern int TerminalDriverStatistics(struct termstat *stats) {
     if(!driverInit) {
         return -1;
     }
+    snapShot = 1;
     int tr = 0;
-    struct termstat curTerm;
+    struct termstat *curTerm;
     while(tr < NUM_TERMINALS) {
-        curTerm = *(stats+tr);
-
-        tr++;
+        curTerm = &stats[tr];
+        if(!terms[tr]) {
+            curTerm->tty_in = -1;
+            curTerm->tty_out = -1;
+            curTerm->user_in = -1;
+            curTerm->user_out = -1;
+            tr++;
+            continue;
+        } else {
+            curTerm->tty_in = terminals[tr].tty_in;
+            curTerm->tty_out = terminals[tr].tty_out;
+            curTerm->user_in = terminals[tr].user_in;
+            curTerm->user_out = terminals[tr].user_out;
+            tr++;
+        }
     }
+    while(ssWaiting > 0) {
+        CondSignal(snapShotSignal);
+        ssWaiting -= 1;
+    }
+    snapShot = 0;
     return 0;
 }
 
@@ -459,6 +485,7 @@ extern int InitTerminalDriver() {
      */
     writingSig = CondCreate();
     echoSig = CondCreate();
+    snapShotSignal = CondCreate();
     /**
      * Initiate Buffers
      */
